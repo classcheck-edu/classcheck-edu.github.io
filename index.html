@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#1e3a8a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>ClassCheck — Hệ Thống Điểm Danh Định Vị</title>
+
+  <!-- Modular Utilitarian Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css?v=3.7.5" />
+</head>
+<body>
+
+  <!-- PROFESSIONAL MONOLINE TECHNICAL SVG SPRITE -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
+    <symbol id="ic-shield" viewBox="0 0 24 24">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+      <path d="m9 12 2 2 4-4"></path>
+    </symbol>
+    <symbol id="ic-crosshair" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="22" y1="12" x2="18" y2="12"></line>
+      <line x1="6" y1="12" x2="2" y2="12"></line>
+      <line x1="12" y1="6" x2="12" y2="2"></line>
+      <line x1="12" y1="22" x2="12" y2="18"></line>
+    </symbol>
+    <symbol id="ic-user" viewBox="0 0 24 24">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </symbol>
+    <symbol id="ic-users" viewBox="0 0 24 24">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </symbol>
+    <symbol id="ic-refresh" viewBox="0 0 24 24">
+      <polyline points="23 4 23 10 17 10"></polyline>
+      <polyline points="1 20 1 14 7 14"></polyline>
+      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+    </symbol>
+    <symbol id="ic-maximize" viewBox="0 0 24 24">
+      <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+    </symbol>
+    <symbol id="ic-sliders" viewBox="0 0 24 24">
+      <line x1="4" y1="21" x2="4" y2="14"></line>
+      <line x1="4" y1="10" x2="4" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12" y2="3"></line>
+      <line x1="20" y1="21" x2="20" y2="16"></line>
+      <line x1="20" y1="12" x2="20" y2="3"></line>
+      <line x1="1" y1="14" x2="7" y2="14"></line>
+      <line x1="9" y1="8" x2="15" y2="8"></line>
+      <line x1="17" y1="16" x2="23" y2="16"></line>
+    </symbol>
+    <symbol id="ic-check" viewBox="0 0 24 24">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </symbol>
+    <symbol id="ic-eye" viewBox="0 0 24 24">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+      <circle cx="12" cy="12" r="3"></circle>
+    </symbol>
+    <symbol id="ic-shuffle" viewBox="0 0 24 24">
+      <polyline points="16 3 21 3 21 8"></polyline>
+      <line x1="4" y1="20" x2="21" y2="3"></line>
+      <polyline points="21 16 21 21 16 21"></polyline>
+      <line x1="15" y1="15" x2="21" y2="21"></line>
+      <line x1="4" y1="4" x2="9" y2="9"></line>
+    </symbol>
+    <symbol id="ic-database" viewBox="0 0 24 24">
+      <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+    </symbol>
+    <symbol id="ic-lock" viewBox="0 0 24 24">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+    </symbol>
+  </svg>
+
+  <!-- TOP NAVIGATION BAR -->
+  <header class="topbar no-print">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg class="icon"><use href="#ic-shield"></use></svg>
+      </span>
+      <span>ClassCheck</span>
+    </div>
+    <div class="top-actions">
+      <button type="button" id="btn-mode-student" class="pill-btn active" onclick="switchMode('STUDENT')" data-i18n="nav_student">Sinh viên</button>
+      <button type="button" id="btn-mode-teacher" class="pill-btn" onclick="switchMode('TEACHER')" data-i18n="nav_teacher">Giảng viên</button>
+      <button type="button" id="btn-lang" class="pill-btn" onclick="toggleLanguage()">VI / EN</button>
+    </div>
+  </header>
+
+  <main id="main-container" class="container">
+
+    <!-- COMPACT MOBILE WALKTHROUGH IF OPENED IN ZALO/MESSENGER OR APPLE iOS CODE SCANNER -->
+    <div id="ios-install-banner" class="compact-webview-guard hidden">
+      <div class="compact-guard-header">
+        <span class="compact-guard-icon">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </span>
+        <div id="t-ios-guard" class="compact-guard-title">Không dùng trình duyệt trong Zalo / Messenger</div>
+      </div>
+      <div class="compact-guard-steps">
+        <div class="compact-guard-step">
+          <span class="compact-guard-badge">1</span>
+          <span id="t-ios-guard-step1">Bấm nút ••• góc trên phải → chọn Mở bằng trình duyệt.</span>
+        </div>
+        <div class="compact-guard-step">
+          <span class="compact-guard-badge">2</span>
+          <span id="t-ios-guard-step2">Hoặc chép link bên dưới dán vào Safari / Chrome:</span>
+        </div>
+      </div>
+      <div class="compact-guard-actions">
+        <button type="button" id="btn-copy-browser-url" class="btn btn-primary btn-sm" onclick="copyCurrentUrlForMainBrowser()" data-i18n="btn_copy_browser_url">
+          Sao chép link mở Safari / Chrome
+        </button>
+        <button type="button" id="btn-open-external-browser" class="btn btn-outline btn-sm" onclick="openInExternalMainBrowser()" data-i18n="btn_open_external_browser">
+          Mở ngay bằng trình duyệt chính
+        </button>
+      </div>
+    </div>
+
+    <!-- GLOBAL STATUS / RECEIPT ALERT -->
+    <div id="status-box" class="alert hidden"></div>
+
+    <!-- ================================================================== -->
+    <!-- VIEW 1: STUDENT MODE                                               -->
+    <!-- ================================================================== -->
+    <section id="view-student">
+
+      <!-- 1A. STUDENT IDENTITY & AUTO-SCHEDULE CLASS SELECTOR -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon"><use href="#ic-user"></use></svg>
+            <span data-i18n="stu_course_title">Thông tin Sinh viên</span>
+          </div>
+        </div>
+
+        <div id="student-has-courses" class="hidden">
+          <div class="student-id-pill" style="margin-bottom:10px;">
+            <span id="stu-bound-info">Sinh viên</span>
+          </div>
+
+          <label id="lbl-student-inst" class="hidden" data-i18n="stu_select_lecturer">Giảng viên:</label>
+          <select id="sel-student-inst" class="hidden" onchange="onStudentInstChange(false)"></select>
+
+          <label for="sel-student-class" data-i18n="stu_select_class">Lớp học phần:</label>
+          <select id="sel-student-class" style="margin-bottom:0;"></select>
+
+          <div id="stu-schedule-hint" class="schedule-hint-bar hidden"></div>
+        </div>
+
+        <div id="student-no-courses" class="hidden">
+          <p id="stu-no-course-desc" class="subtext" data-i18n="stu_no_course_desc" style="margin-bottom:6px;">
+            Nhập mã số sinh viên để liên kết lớp học (chỉ cần thực hiện 1 lần đầu học kỳ).
+          </p>
+        </div>
+
+        <!-- ULTRA-COMPACT 2-LINE BROWSER WALKTHROUGH REMINDER (VISIBLE ON STUDENT CARD) -->
+        <div id="onboard-compact-rules" class="onboard-compact-rules" style="margin-top:8px; margin-bottom:2px;">
+          <div class="onboard-compact-rules-title" data-i18n="stu_onboard_rule_title">Lưu ý tránh bị khóa máy:</div>
+          <div data-i18n="stu_onboard_rule_1">• Không mở từ Zalo hoặc Trình quét mã của iPhone.</div>
+          <div data-i18n="stu_onboard_rule_2">• Chỉ dùng cố định 1 trình duyệt (Safari hoặc Chrome).</div>
+        </div>
+
+        <!-- ONBOARDING / LINK NEW COURSE SUB-PANEL (SHOWN ONLY BEFORE FIRST STUDENT ID BINDING) -->
+        <div id="box-add-course" class="hidden" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border-subtle);">
+          <label id="lbl-student-id" for="inp-student-id" data-i18n="stu_id_label">Mã số sinh viên:</label>
+          <input type="text" id="inp-student-id" data-i18n-placeholder="stu_id_placeholder" placeholder="Nhập mã số sinh viên..." autocomplete="off" />
+
+          <button type="button" id="btn-submit-onboard" class="btn btn-primary" onclick="promptStudentOnboardConfirm()" data-i18n="stu_register_btn">Lưu và Liên kết thiết bị</button>
+
+          <!-- INLINE CONTEXTUAL FEEDBACK FOR ONBOARDING -->
+          <div id="onboard-inline-status" class="inline-feedback hidden"></div>
+        </div>
+      </div>
+
+      <!-- 1B. PRE-CHECK GPS PANEL & 1-TAP ATTENDANCE CARD -->
+      <div class="card" id="card-daily-checkin">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon"><use href="#ic-crosshair"></use></svg>
+            <span data-i18n="stu_checkin_title">Điểm danh Lớp học</span>
+          </div>
+        </div>
+
+        <!-- Hidden anti-cheat state nodes -->
+        <div id="student-shield-box" class="hidden">
+          <span id="shield-browser-status"></span>
+          <span id="shield-device-status"></span>
+          <span id="shield-id-status"></span>
+        </div>
+
+        <!-- UTILITARIAN ACADEMIC STUDENT ATTENDANCE SUMMARY + EXPANDABLE SHEET HISTORY BOX -->
+        <div id="stu-attendance-summary" class="stu-att-summary-bar" onclick="toggleStudentAttendanceHistory()" title="Bấm để xem chi tiết điểm chuyên cần và lịch sử điểm danh">
+          <div class="stu-att-header-row">
+            <div class="stu-att-chips">
+              <span class="att-stat-item"><span class="att-dot dot-p"></span><span data-i18n="stu_att_p">Có mặt</span>: <strong>0</strong></span>
+              <span class="att-stat-item"><span class="att-dot dot-l"></span><span data-i18n="stu_att_l">Đi trễ</span>: <strong>0</strong></span>
+              <span class="att-stat-item"><span class="att-dot dot-e"></span><span data-i18n="stu_att_e">Có phép</span>: <strong>0</strong></span>
+              <span class="att-stat-item"><span class="att-dot dot-a"></span><span data-i18n="stu_att_a">Vắng</span>: <strong>0</strong></span>
+            </div>
+            <svg class="att-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+          <div id="stu-att-warning-banner" class="stu-att-warning-banner hidden"></div>
+          <div id="stu-att-history-drawer" class="stu-att-history-drawer hidden"></div>
+        </div>
+
+        <!-- LIVE CLASSROOM GROUP ASSIGNMENT CARD (SHOWN WHEN LECTURER PUBLISHES GROUPS) -->
+        <div id="stu-group-card" class="stu-group-card hidden"></div>
+
+        <!-- SINGLE STREAMLINED GPS STATUS BAR (NO REPETITION) -->
+        <div id="gps-panel">
+          <div class="gps-panel-top">
+            <div class="gps-status-group">
+              <span id="gps-dot" class="status-dot dot-idle"></span>
+              <span id="gps-readout" data-i18n="stu_gps_readout_idle">Chưa kiểm tra GPS</span>
+            </div>
+            <button type="button" id="btn-check-gps" class="btn btn-outline btn-sm" onclick="handleStudentPreCheckGps()">
+              <svg class="icon icon-sm"><use href="#ic-crosshair"></use></svg>
+              <span data-i18n="stu_btn_check_gps">Kiểm tra GPS</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2-SECOND ADDRESS BAR PERMISSION UNBLOCK GUIDE (SHOWN AUTOMATICALLY WHEN SITE LOCATION IS BLOCKED) -->
+        <div id="gps-permission-guide-box" class="perm-guide-box hidden">
+          <div class="perm-guide-header">
+            <span id="perm-guide-title" data-i18n="perm_guide_title">Cách mở quyền Vị trí trên thanh địa chỉ:</span>
+          </div>
+          <div class="perm-guide-steps">
+            <div class="perm-step-row">
+              <span class="perm-step-badge">1</span>
+              <span id="perm-guide-step1">Bấm nút ••• hoặc biểu tượng Menu (hoặc 2 thanh trượt) trên thanh địa chỉ.</span>
+            </div>
+            <div class="perm-step-row">
+              <span class="perm-step-badge">2</span>
+              <span id="perm-guide-step2">Chọn Cài đặt trang web (hoặc Quyền) → Vị trí → Cho phép.</span>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" id="btn-start-checkin" class="btn btn-checkin-hero" onclick="handleOneTapGpsCheckIn()">
+          <svg class="icon icon-lg"><use href="#ic-check"></use></svg>
+          <span id="btn-start-checkin-label" data-i18n="stu_one_tap_checkin_btn">ĐIỂM DANH NGAY</span>
+        </button>
+
+        <!-- ROUND 2: 4-DIGIT 10S PIN ENTRY PAD (SHOWN ONLY WHEN LECTURER ENABLES PIN_10S IN P2) -->
+        <div id="stu-p2-pin-box" class="stu-p2-pin-box hidden">
+          <div id="stu-p2-pin-gps-banner" class="stu-p2-pin-gps-banner">
+            Đã khóa tọa độ GPS • Nhập 4 số trên bảng chiếu
+          </div>
+          <div class="stu-p2-pin-slots" id="stu-p2-pin-slots-wrap" onclick="focusStudentPin10Input()">
+            <div id="stu-pin-slot-0" class="stu-pin-slot active"></div>
+            <div id="stu-pin-slot-1" class="stu-pin-slot"></div>
+            <div id="stu-pin-slot-2" class="stu-pin-slot"></div>
+            <div id="stu-pin-slot-3" class="stu-pin-slot"></div>
+          </div>
+          <input type="tel" id="inp-stu-pin10" class="stu-pin-hidden-input" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onpaste="return false" ondrop="return false" oninput="onStudentPin10Input(this.value)" />
+          <div class="stu-p2-pin-footer">
+            <span id="stu-p2-pin-hint" data-i18n="stu_p2_pin_hint">Tự động nộp ngay khi gõ đủ 4 số</span>
+            <button type="button" class="btn btn-outline btn-sm" onclick="cancelStudentPin10sModal()" data-i18n="tea_cancel_open_btn">Hủy</button>
+          </div>
+        </div>
+
+        <!-- INLINE CONTEXTUAL FEEDBACK FOR CHECK-IN -->
+        <div id="checkin-inline-status" class="inline-feedback hidden"></div>
+
+        <!-- TODAY'S VERIFIED RECEIPT PERSISTENCE -->
+        <div id="student-today-receipt" class="receipt-card hidden"></div>
+      </div>
+
+    </section>
+
+    <!-- ================================================================== -->
+    <!-- VIEW 2: LECTURER MODE                                              -->
+    <!-- ================================================================== -->
+    <section id="view-teacher" class="hidden">
+
+      <!-- 2A. LECTURER LOGIN CARD -->
+      <div id="card-teacher-login" class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg class="icon"><use href="#ic-lock"></use></svg>
+            <span data-i18n="tea_login_title">Đăng nhập Giảng viên</span>
+          </div>
+        </div>
+        <p class="subtext" data-i18n="tea_login_desc">
+          Ưu tiên dùng Khóa chính (Master Key) trên thiết bị cá nhân. Chỉ dùng mã phiên 6 chữ số trên máy tính phòng học (Public PC).
+        </p>
+
+        <div id="box-tea-api-advanced" style="margin-bottom:10px; padding:10px; background:var(--surface); border-radius:8px; border:1px solid var(--border);">
+          <label for="inp-tea-api" data-i18n="tea_api_url_label">Đường dẫn máy chủ (Ô B4 trên Google Sheet):</label>
+          <input type="text" id="inp-tea-api" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" style="margin-bottom:0;" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('inp-tea-token').focus();}" />
+          <button type="button" id="btn-reset-tea-api" class="btn btn-outline btn-sm hidden" style="margin-top:6px;" onclick="resetToDefaultLecturerApi()" data-i18n="tea_reset_url_btn">Đổi / Xóa đường dẫn máy chủ đã lưu</button>
+        </div>
+
+        <label for="inp-tea-token" data-i18n="tea_token_label">Khóa chính (Master Key) hoặc Mã phiên 6 số (Public PC):</label>
+        <input type="password" id="inp-tea-token" data-i18n-placeholder="tea_token_placeholder" placeholder="Nhập Master Key (ưu tiên) hoặc mã 6 số..." autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();loginTeacher();}" />
+
+        <label for="sel-tea-persistence" data-i18n="tea_session_type_label">Chế độ lưu đăng nhập:</label>
+        <select id="sel-tea-persistence">
+          <option value="LOCAL" selected data-i18n="tea_persist_phone">Thiết bị cá nhân của Giảng viên (Giữ đăng nhập)</option>
+          <option value="SESSION" data-i18n="tea_persist_pc">Máy tính phòng học (Tự động đăng xuất sau 60 phút)</option>
+        </select>
+
+        <button type="button" id="btn-tea-login" class="btn btn-primary" onclick="loginTeacher()" data-i18n="tea_login_btn">Đăng nhập Giảng viên</button>
+        <div id="tea-login-inline-status" class="inline-feedback hidden"></div>
+
+        <div id="row-tea-config-url-link" class="hidden" style="margin-top:10px; text-align:right;">
+          <a href="javascript:void(0)" style="font-size:0.76rem; color:var(--muted); text-decoration:none;" onclick="toggleTeacherApiBox()" data-i18n="tea_config_url_link">
+            Cấu hình đường dẫn kết nối
+          </a>
+        </div>
+      </div>
+
+      <!-- 2B. ACTIVE TEACHER DASHBOARD -->
+      <div id="box-teacher-dashboard" class="hidden">
+
+        <!-- PANEL 1: CLASS SELECTOR & ISOLATED SESSION CONTROL -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg class="icon"><use href="#ic-crosshair"></use></svg>
+              <span data-i18n="tea_panel1_title">1. Điều khiển Phiên điểm danh</span>
+            </div>
+            <span id="tea-session-badge" class="badge-err">PHIÊN ĐANG ĐÓNG</span>
+          </div>
+
+          <!-- REAL-TIME CLASS SELECTION & OVERVIEW BOX -->
+          <div class="teacher-class-overview">
+            <select id="sel-tea-class" onchange="onTeacherClassChange()" style="margin-bottom:0;"></select>
+            <div id="tea-schedule-hint" class="schedule-hint-bar"></div>
+            <div id="tea-course-progress-strip" class="course-progress-strip hidden"></div>
+          </div>
+
+          <div class="projector-grid">
+            <!-- Primary Column: Timer, Live Counter & ISOLATED SESSION CONTROL BLOCK -->
+            <div id="teacher-session-main-col">
+              <div class="timer-big" id="tea-countdown">00:00</div>
+
+              <div class="counter-badge">
+                <span id="tea-live-count">0 / 0 Có mặt</span>
+                <div style="font-size:0.78rem; font-weight:500; color:var(--muted); margin-top:2px;" id="tea-live-breakdown">
+                  P: 0 | L: 0 | A: 0 | E: 0
+                </div>
+              </div>
+
+              <!-- ISOLATED OPEN/CLOSE SESSION BLOCK -->
+              <div id="teacher-session-control-box" class="session-control-isolated no-print">
+                <button type="button" id="btn-tea-open-trigger" class="btn btn-accent" onclick="promptOpenSessionConfirm()">
+                  <svg class="icon"><use href="#ic-check"></use></svg>
+                  <span data-i18n="tea_open_trigger_btn">Mở phiên điểm danh</span>
+                </button>
+
+                <!-- Contextual Round 2 Launch Strip (Shown in place of Open P1 button after P1 closes) -->
+                <div id="tea-p2-launch-strip" class="p2-outside-launch-bar hidden">
+                  <button type="button" id="btn-tea-open-round2" class="btn btn-accent btn-open-p2-main" onclick="promptOpenRound2Confirm()">
+                    <svg class="icon"><use href="#ic-check"></use></svg>
+                    <span id="lbl-tea-open-round2" data-i18n="tea_open_p2_btn">Mở điểm danh Lần 2 (Đột xuất)</span>
+                  </button>
+                  <div class="p2-inline-opts">
+                    <label class="p2-opt-pill" for="inp-tea-p2-mins">
+                      <span data-i18n="tea_p2_duration_label">Thời lượng:</span>
+                      <input type="number" id="inp-tea-p2-mins" min="1" max="15" value="3" />
+                      <span data-i18n="tea_p2_mins_unit">phút</span>
+                    </label>
+                    <label class="p2-opt-pill" for="chk-tea-p2-pin10s">
+                      <input type="checkbox" id="chk-tea-p2-pin10s" />
+                      <span data-i18n="tea_p2_pin10s_label">Bật Mã PIN 10s</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Live 10-Second Rotating PIN Projector Box (Shown when Round 2 is open with PIN_10S) -->
+                <div id="tea-p2-pin-projector-box" class="p2-projector-pin-card hidden" ondblclick="togglePinSpotlightMode(event)" title="Nhấp đúp chuột (Double-click) để phóng to PIN toàn màn hình">
+                  <div class="p2-projector-pin-title" id="lbl-tea-pin-projector-title" data-i18n="tea_pin_proj_title">MÃ PIN ĐIỂM DANH LẦN 2 (ĐỔI MỖI 10 GIÂY)</div>
+                  <div class="p2-pin-spotlight-meta" id="tea-pin-spotlight-meta">
+                    <span id="tea-pin-spot-timer">00:00</span>
+                    <span class="spot-meta-sep">•</span>
+                    <span id="tea-pin-spot-count">0 / 0 Có mặt</span>
+                  </div>
+                  <div class="p2-projector-pin-digits" id="tea-pin10s-digits">
+                    <span class="p2-pin-digit" id="tea-pin10s-d0">-</span>
+                    <span class="p2-pin-digit" id="tea-pin10s-d1">-</span>
+                    <span class="p2-pin-digit" id="tea-pin10s-d2">-</span>
+                    <span class="p2-pin-digit" id="tea-pin10s-d3">-</span>
+                  </div>
+                  <div class="p2-projector-pin-bar-track">
+                    <div class="p2-projector-pin-bar-fill" id="tea-pin10s-bar-fill"></div>
+                  </div>
+                  <div class="p2-projector-pin-footer">
+                    <span id="tea-pin10s-sub">Đổi mã mới sau: 10s</span>
+                    <button type="button" id="btn-tea-switch-1tap" class="btn btn-outline btn-sm p2-switch-1tap-btn" onclick="switchRound2QrMode('STATIC')" ondblclick="event.stopPropagation()" data-i18n="tea_switch_1tap_btn">
+                      Chuyển về 1-Chạm (Không PIN)
+                    </button>
+                  </div>
+                  <div class="p2-pin-spotlight-hint" id="tea-pin-spotlight-hint" data-i18n="tea_pin_spot_hint">
+                    Nhấp đúp vào khung PIN để phóng to toàn màn hình • Nhấn Esc để thu nhỏ
+                  </div>
+                </div>
+
+                <!-- SUBTLE TEXT LINK UNDER OPEN SESSION BUTTON (MATCHING STUDENT ADVANCED SETTINGS STYLE) -->
+                <div style="margin-top:6px; text-align:right;" class="no-print">
+                  <a href="javascript:void(0)" id="btn-toggle-adv-gps" style="font-size:0.75rem; color:var(--muted); text-decoration:none;" onclick="toggleTeacherAdvGpsBox()" data-i18n="tea_adv_gps_link">
+                    Chế độ định vị GPS dự phòng
+                  </a>
+                </div>
+
+                <div id="box-adv-gps-mode" class="hidden no-print" style="margin-top:6px; padding:8px 10px; background:var(--surface); border:1px solid var(--border); border-radius:6px; text-align:left; width:100%;">
+                  <label class="checkbox-row" for="chk-use-student-avg3" style="margin:0; font-size:0.78rem; font-weight:600; color:var(--text);">
+                    <input type="checkbox" id="chk-use-student-avg3" onchange="onAdvStudentGpsToggle()" />
+                    <span data-i18n="tea_adv_gps_label">Bật chế độ định vị GPS dự phòng (Khi thiết bị giảng viên không có GPS)</span>
+                  </label>
+                  <div id="tea-gps-anchor-hint" style="font-size:0.72rem; color:var(--muted); margin-top:4px; line-height:1.35;">
+                    Mặc định: Đánh giá khoảng cách theo vị trí của Giảng viên (Tự động chuyển sang chế độ dự phòng nếu thiết bị Giảng viên không có định vị GPS).
+                  </div>
+                </div>
+
+                <div class="btn-row" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--border-subtle); flex-wrap:wrap;">
+                  <button type="button" id="btn-tea-extend" class="btn btn-outline btn-sm" onclick="teacherControlSession('EXTEND_2M')" data-i18n="tea_extend_btn">+2 Phút</button>
+                  <button type="button" class="btn btn-outline-danger btn-sm" id="btn-tea-cancel-mistaken" onclick="promptCancelMistakenSession()" data-i18n="tea_cancel_mistaken_btn" data-i18n-title="tea_cancel_mistaken_title" title="Xóa bỏ phiên vừa mở nhầm hôm nay (Không tính vào lịch sử)">Hủy phiên nhầm</button>
+                  <button type="button" id="btn-tea-close" class="btn btn-danger btn-sm" onclick="promptCloseSessionConfirm()" data-i18n="tea_close_btn">Đóng phiên</button>
+                </div>
+
+                <div id="tea-session-inline-status" class="inline-feedback hidden"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL 2: LIVE ROSTER, QUICK FILTERS & ANTI-CHEAT -->
+        <div class="card no-print">
+          <div class="card-header">
+            <div class="card-title">
+              <svg class="icon"><use href="#ic-user"></use></svg>
+              <span data-i18n="tea_panel2_title">2. Danh sách Sinh viên</span>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="triggerRandomSpotCheck()">
+                <span data-i18n="tea_spot_check_btn">Gọi ngẫu nhiên</span>
+              </button>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-copy-present-list" onclick="copyPresentStudentsList()">
+                <span data-i18n="tea_copy_present_btn">Sao chép DS</span>
+              </button>
+              <button type="button" class="btn btn-outline btn-sm" onclick="openGroupMakerModal()">
+                <span data-i18n="tea_group_maker_btn">Chia nhóm</span>
+              </button>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-toggle-names" onclick="toggleRosterVisibility()">
+                <span id="lbl-toggle-names" data-i18n="tea_hide_names">Ẩn tên</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="tea-suspect-banner" class="alert alert-warn hidden" style="font-size:0.82rem;"></div>
+
+          <div class="roster-toolbar">
+            <div class="roster-filter-bar">
+              <button type="button" id="tab-filter-all" class="filter-tab active" data-roster-filter="ALL" onclick="setRosterFilter('ALL')">Tất cả (0)</button>
+              <button type="button" id="tab-filter-present" class="filter-tab" data-roster-filter="PRESENT" onclick="setRosterFilter('PRESENT')">Có mặt (0)</button>
+              <button type="button" id="tab-filter-absent" class="filter-tab" data-roster-filter="ABSENT" onclick="setRosterFilter('ABSENT')">Vắng (0)</button>
+              <button type="button" id="tab-filter-suspect" class="filter-tab" data-roster-filter="SUSPECT" onclick="setRosterFilter('SUSPECT')">Nghi vấn (0)</button>
+              <button type="button" id="btn-open-history-modal" class="filter-tab filter-tab-history" onclick="openAttendanceHistoryManagerModal()" data-i18n="tea_history_btn">Lịch sử</button>
+              <div id="tea-round-segmented" class="round-segmented hidden">
+                <button type="button" id="seg-round-p1" class="seg-btn" data-round-view="P1" onclick="setTeacherRosterRoundView('P1')">Phiên 1</button>
+                <button type="button" id="seg-round-p2" class="seg-btn" data-round-view="P2" onclick="setTeacherRosterRoundView('P2')">Phiên 2</button>
+                <button type="button" id="seg-round-final" class="seg-btn active" data-round-view="FINAL" onclick="setTeacherRosterRoundView('FINAL')">Kết quả cuối</button>
+              </div>
+            </div>
+            <input type="text" id="inp-roster-search" data-i18n-placeholder="tea_search_placeholder" placeholder="Tìm họ tên hoặc mã số sinh viên (Nhấn Enter để đánh dấu Có mặt)..." oninput="renderTeacherRoster()" onkeydown="handleRosterSearchKeydown(event)" style="margin-bottom:0;" />
+          </div>
+
+          <div id="tea-roster-container" class="roster-list"></div>
+        </div>
+
+        <!-- PANEL 3: ADMIN TOOLS -->
+        <div class="card no-print">
+          <div class="card-header">
+            <div class="card-title">
+              <svg class="icon"><use href="#ic-database"></use></svg>
+              <span data-i18n="tea_panel4_title">3. Quản trị và Đồng bộ dữ liệu</span>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" id="btn-reg-gate-toggle" class="btn btn-outline btn-sm" onclick="teacherToggleRegGate()">
+              ĐK thiết bị: MỞ
+            </button>
+            <button type="button" id="btn-tea-rebuild-sheet" class="btn btn-outline btn-sm" onclick="teacherRebuildSheet()" data-i18n="tea_rebuild_sheet_btn">
+              Đồng bộ Sheet
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="logoutTeacher()" data-i18n="tea_logout_btn">
+              Đăng xuất
+            </button>
+          </div>
+          <div id="tea-admin-inline-status" class="inline-feedback hidden"></div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- IN-PAGE APPLICATION MODAL -->
+  <div id="app-modal" class="modal-backdrop hidden no-print" onclick="if(event.target===this)closeAppModal()">
+    <div id="app-modal-card" class="modal-card">
+      <div id="app-modal-title" class="modal-title" data-i18n="modal_confirm_title">Xác nhận</div>
+      <div id="app-modal-body" class="modal-body"></div>
+      <div class="btn-row">
+        <button type="button" id="app-modal-cancel" class="btn btn-outline" onclick="closeAppModal()" data-i18n="btn_cancel_scan">Đóng</button>
+        <button type="button" id="app-modal-extra" class="btn btn-primary hidden"></button>
+        <button type="button" id="app-modal-confirm" class="btn btn-primary" data-i18n="modal_confirm_btn">Đồng ý</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTERED FLOATING CONFIRMATION POPUP (STACKS ABOVE ALL VIEWS & MODALS) -->
+  <div id="confirm-modal" class="modal-backdrop modal-backdrop-confirm hidden no-print" onclick="if(event.target===this)closeConfirmModal()">
+    <div class="modal-card modal-card-confirm">
+      <div id="confirm-modal-title" class="modal-title">Xác nhận</div>
+      <div id="confirm-modal-body" class="modal-body"></div>
+      <div class="btn-row">
+        <button type="button" id="confirm-modal-cancel" class="btn btn-outline" onclick="closeConfirmModal()">Hủy</button>
+        <button type="button" id="confirm-modal-ok" class="btn btn-primary">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODULAR APPLICATION SCRIPTS -->
+  <script src="js/schedule-config.js?v=3.7.5"></script>
+  <script src="js/student.js?v=3.7.5"></script>
+  <script src="js/teacher.js?v=3.7.5"></script>
+</body>
+</html>

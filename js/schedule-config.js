@@ -1,14 +1,12 @@
 /**
  * ============================================================================
- * 0. MASTER SHEET CONNECTION SETTINGS & SCHEDULE ENGINE (v3.7.5)
+ * 0. MASTER SHEET CONNECTION SETTINGS & SCHEDULE ENGINE (v3.9.2)
  * ============================================================================
  */
 const DEFAULT_LECTURER_API = '';
 const LEGACY_LECTURER_APIS = [];
 const DEFAULT_LECTURER_NAME = '';
 const DEFAULT_INST_ID = '';
-
-const KNOWN_CLASS_SECRETS = {};
 
 const REMOVED_SAMPLE_CLASSES = ['ENG101_G1'];
 
@@ -108,7 +106,56 @@ const PERIOD_SLOTS_MAP = {
  * Supports either `periods` ('123', '456', '789', '10-12', '13-15') or explicit `startTime`/`endTime`.
  * Note: Live Google Calendar events & Attendance Sheet period/date metadata automatically take priority when available.
  */
-const CLASS_SCHEDULE = [];
+const CLASS_SCHEDULE = [
+  {
+    classId: '2610AVCB002',
+    aliases: ['AVCB 002', 'AVCB002', '2610AVCB002'],
+    daysOfWeek: [1, 5], // Thứ 2 & Thứ 6 (0 = CN, 1 = Thứ 2, ..., 6 = Thứ 7)
+    dayOfWeek: 1,
+    periods: '10-12',
+    startTime: '15:00',
+    endTime: '17:30',
+    sessionDates: [
+      '2026-10-23', '2026-10-26', '2026-10-30', '2026-11-02', '2026-11-06', '2026-11-09',
+      '2026-11-13', '2026-11-16', '2026-11-20', '2026-11-23', '2026-11-27', '2026-11-30',
+      '2026-12-04', '2026-12-07', '2026-12-11', '2026-12-14', '2026-12-18', '2026-12-21',
+      '2026-12-25', '2026-12-28', '2027-01-01', '2027-01-04', '2027-01-08', '2027-01-11',
+      '2027-01-15', '2027-01-18', '2027-01-22', '2027-01-25', '2027-01-29', '2027-02-01'
+    ]
+  },
+  {
+    classId: '2610AVCB003',
+    aliases: ['AVCB 003', 'AVCB003', '2610AVCB003'],
+    daysOfWeek: [1, 5], // Thứ 2 & Thứ 6
+    dayOfWeek: 1,
+    periods: '13-15',
+    startTime: '17:30',
+    endTime: '20:00',
+    sessionDates: [
+      '2026-10-19', '2026-10-23', '2026-10-26', '2026-10-30', '2026-11-02', '2026-11-06',
+      '2026-11-09', '2026-11-13', '2026-11-16', '2026-11-20', '2026-11-23', '2026-11-27',
+      '2026-11-30', '2026-12-04', '2026-12-07', '2026-12-11', '2026-12-14', '2026-12-18',
+      '2026-12-21', '2026-12-25', '2026-12-28', '2027-01-01', '2027-01-04', '2027-01-08',
+      '2027-01-11', '2027-01-15', '2027-01-18', '2027-01-22', '2027-01-25', '2027-01-29'
+    ]
+  },
+  {
+    classId: '2610AVCB004',
+    aliases: ['AVCB 004', 'AVCB004', '2610AVCB004'],
+    daysOfWeek: [2, 4], // Thứ 3 & Thứ 5
+    dayOfWeek: 2,
+    periods: '10-12',
+    startTime: '15:00',
+    endTime: '17:30',
+    sessionDates: [
+      '2026-10-20', '2026-10-22', '2026-10-27', '2026-10-29', '2026-11-03', '2026-11-05',
+      '2026-11-10', '2026-11-12', '2026-11-17', '2026-11-19', '2026-11-24', '2026-11-26',
+      '2026-12-01', '2026-12-03', '2026-12-08', '2026-12-10', '2026-12-15', '2026-12-17',
+      '2026-12-22', '2026-12-24', '2026-12-29', '2026-12-31', '2027-01-05', '2027-01-07',
+      '2027-01-12', '2027-01-14', '2027-01-19', '2027-01-21', '2027-01-26', '2027-01-28'
+    ]
+  }
+];
 
 // Stores live schedule metadata fetched from Backend (Google Calendar + Sheet Period Info)
 window.liveServerSchedule = {
@@ -290,14 +337,6 @@ function parseDaysOfWeekFromText(rawText) {
   if (/\b(saturday|sat)\b/i.test(s)) addDay(6);
 
   return days;
-}
-
-/**
- * Parses the first day of week (0 = Sunday .. 6 = Saturday) from Vietnamese or English text.
- */
-function parseDayOfWeekFromText(rawText) {
-  const days = parseDaysOfWeekFromText(rawText);
-  return days.length > 0 ? days[0] : null;
 }
 
 function normalizeClassCodeKey(str) {
@@ -565,7 +604,6 @@ const I18N = {
     stu_select_class: "Lớp học phần:",
     stu_unselected_class_opt: "-- Chưa chọn lớp - Ngoài khung giờ --",
     stu_no_course_desc: "Nhập mã số sinh viên để liên kết lớp học (chỉ cần thực hiện 1 lần đầu học kỳ).",
-    stu_need_qr_desc: "Vui lòng quét mã QR Đăng ký lớp học do Giảng viên cung cấp ở buổi đầu để kết nối máy chủ lớp học.",
     stu_scan_onboard_qr: "Quét mã QR Khóa học",
     stu_toggle_api_link: "Cài đặt kết nối nâng cao",
     stu_api_url_label: "Đường dẫn máy chủ (Web App URL):",
@@ -581,13 +619,13 @@ const I18N = {
     stu_one_tap_checkin_btn: "ĐIỂM DANH NGAY",
     stu_submitting_btn: "Đang gửi dữ liệu...",
     tea_login_title: "Đăng nhập Giảng viên",
-    tea_login_desc: "Ưu tiên dùng Khóa chính (Master Key) trên thiết bị cá nhân. Chỉ dùng mã phiên 6 chữ số trên máy tính phòng học (Public PC).",
+    tea_login_desc: "Nhập mã phiên 6 chữ số trên Google Sheet hoặc khóa chính (Master Key).",
     tea_scan_pair_qr: "Quét mã QR Ghép nối",
     tea_config_url_link: "Cấu hình đường dẫn kết nối",
-    tea_reset_url_btn: "Đổi / Xóa đường dẫn máy chủ đã lưu",
+    tea_reset_url_btn: "Khôi phục đường dẫn mặc định",
     tea_api_url_label: "Đường dẫn máy chủ (Ô B4 trên Google Sheet):",
-    tea_token_label: "Khóa chính (Master Key) hoặc Mã phiên 6 số (Public PC):",
-    tea_token_placeholder: "Nhập Master Key (ưu tiên) hoặc mã 6 số...",
+    tea_token_label: "Mã phiên (6 chữ số) hoặc Khóa chính (Master Key):",
+    tea_token_placeholder: "Nhập mã phiên 6 chữ số hoặc Master Key...",
     tea_session_type_label: "Chế độ lưu đăng nhập:",
     tea_persist_phone: "Thiết bị cá nhân của Giảng viên (Giữ đăng nhập)",
     tea_persist_pc: "Máy tính phòng học (Tự động đăng xuất sau 60 phút)",
@@ -628,6 +666,14 @@ const I18N = {
     ERR_GPS_UNAVAILABLE: "[LỖI TÍN HIỆU GPS] Trình duyệt đã có quyền Vị trí nhưng điện thoại chưa bắt được sóng định vị trong phòng. Vui lòng bật biểu tượng Wi-Fi (để hỗ trợ định vị trong nhà) và bật Dịch vụ định vị trên điện thoại rồi bấm lại.",
     ERR_SERVER_BUSY: "Hệ thống đang xử lý, vui lòng chờ giây lát...",
     ERR_UNAUTHORIZED: "[TỪ CHỐI] Mật khẩu phiên không đúng hoặc đã hết hạn. Hãy kiểm tra lại ô C9 trên Google Sheet.",
+    ERR_MISSING_FIELDS: "[THIẾU THÔNG TIN] Vui lòng nhập đầy đủ các trường bắt buộc.",
+    ERR_INVALID_CLASS: "[LỚP KHÔNG HỢP LỆ] Mã lớp không đúng hoặc không tồn tại.",
+    ERR_NOT_FOUND: "[KHÔNG TÌM THẤY] Không tìm thấy dữ liệu được yêu cầu.",
+    ERR_NO_SESSION: "[CHƯA CÓ PHIÊN] Chưa có phiên điểm danh nào cho buổi học này.",
+    ERR_NETWORK: "[LỖI MẠNG] Không kết nối được tới máy chủ. Vui lòng kiểm tra kết nối mạng rồi thử lại.",
+    ERR_TIMEOUT: "[QUÁ THỜI GIAN] Máy chủ phản hồi quá lâu. Vui lòng thử lại.",
+    ERR_PIN_ROUND1: "[CHỈ PHIÊN 2] Chế độ mã PIN 10 giây chỉ áp dụng cho Phiên 2.",
+    ERR_AUTH_LOCKED: "[TẠM KHÓA] Nhập sai mã 6 số quá nhiều lần. Vui lòng thử lại sau {mins} phút.",
     DEVICE_RESET_OK: "[ĐÃ MỞ KHÓA] Đã đặt lại khóa thiết bị cho sinh viên {id}.",
     btn_open_external_browser: "Mở ngay bằng trình duyệt chính",
     btn_copy_browser_url: "Sao chép link mở Safari / Chrome",
@@ -641,27 +687,27 @@ const I18N = {
     stu_att_l: "Đi trễ",
     stu_att_e: "Có phép",
     stu_att_a: "Vắng",
-    tea_open_p2_btn: "Mở điểm danh Lần 2 (Đột xuất)",
-    tea_open_round2_btn: "Mở điểm danh Lần 2 (Đột xuất)",
+    tea_open_p2_btn: "Mở điểm danh Phiên 2 (Đột xuất)",
+    tea_open_round2_btn: "Mở điểm danh Phiên 2 (Đột xuất)",
     tea_p2_duration_label: "Thời lượng:",
     tea_p2_mins_unit: "phút",
     tea_p2_pin10s_label: "Bật Mã PIN 10s",
     tea_switch_1tap_btn: "Chuyển về 1-Chạm (Không PIN)",
     tea_copy_present_btn: "Sao chép DS",
-    stu_round2_checkin_btn: "ĐIỂM DANH LẦN 2",
+    stu_round2_checkin_btn: "ĐIỂM DANH PHIÊN 2",
     PIN_EXPIRED: "[MÃ PIN HẾT HẠN] Mã PIN 10 giây vừa đổi. Vui lòng nhìn bảng chiếu và nhập lại 4 số mới.",
     PIN_WRONG: "[SAI MÃ PIN] Mã PIN 4 số không khớp với bảng chiếu. Vui lòng nhập lại.",
     PIN_LOCKED: "[TẠM KHÓA MÃ PIN] Bạn đã nhập sai mã PIN quá nhiều lần. Vui lòng chờ {seconds} giây rồi nhìn bảng chiếu nhập lại.",
-    ERR_PIN_REQUIRED: "[YÊU CẦU MÃ PIN] Phiên điểm danh Lần 2 đang bật Mã PIN 10 giây. Vui lòng nhập 4 số trên bảng chiếu.",
-    ERR_P1_STILL_OPEN: "[CHƯA ĐÓNG PHIÊN 1] Vui lòng đóng Phiên 1 trước khi mở điểm danh Lần 2.",
-    ERR_ROUND2_ALREADY_USED: "[ĐÃ DÙNG LẦN 2] Mỗi buổi học chỉ mở tối đa 1 lần điểm danh Lần 2.",
+    ERR_PIN_REQUIRED: "[YÊU CẦU MÃ PIN] Phiên điểm danh Phiên 2 đang bật Mã PIN 10 giây. Vui lòng nhập 4 số trên bảng chiếu.",
+    ERR_P1_STILL_OPEN: "[CHƯA ĐÓNG PHIÊN 1] Vui lòng đóng Phiên 1 trước khi mở điểm danh Phiên 2.",
+    ERR_ROUND2_ALREADY_USED: "[ĐÃ DÙNG PHIÊN 2] Mỗi buổi học chỉ mở tối đa 1 lần điểm danh Phiên 2.",
     ERR_REOPEN_BLOCKED_BY_P2: "[KHÓA MỞ LẠI P1] Không thể mở lại Phiên 1 vì Phiên 2 đã được mở trong buổi học này.",
     ERR_FINAL_READ_ONLY: "[CHỈ ĐỂ XEM] Tab Kết quả cuối chỉ để xem. Vui lòng chuyển sang tab Phiên 1 hoặc Phiên 2 để chấm tay.",
-    ERR_PRIVATE_BROWSING: "[CHẾ ĐỘ ẨN DANH / RIÊNG TƯ] Không hỗ trợ đăng ký hoặc điểm danh trong Tab Ẩn danh (trình duyệt sẽ tự xóa mã khóa khi đóng tab). Vui lòng mở bằng tab Safari hoặc Chrome thông thường.",
+    ERR_PRIVATE_BROWSING: "Bạn đang mở ở chế độ ẩn danh nên không lưu được thiết bị. Hãy mở link này bằng Safari hoặc Chrome thường (không ẩn danh) rồi thử lại.",
     tea_cancel_mistaken_btn: "Hủy phiên nhầm",
     tea_cancel_mistaken_title: "Xóa bỏ phiên vừa mở nhầm hôm nay (Không tính vào lịch sử)",
     stu_p2_pin_hint: "Tự động nộp ngay khi gõ đủ 4 số",
-    tea_pin_proj_title: "MÃ PIN ĐIỂM DANH LẦN 2 (ĐỔI MỖI 10 GIÂY)",
+    tea_pin_proj_title: "MÃ PIN ĐIỂM DANH PHIÊN 2 (ĐỔI MỖI 10 GIÂY)",
     tea_pin_spot_hint: "Nhấp đúp vào khung PIN để phóng to toàn màn hình • Nhấn Esc để thu nhỏ",
     tea_hide_names: "Ẩn tên",
     tea_show_names: "Hiện tên",
@@ -678,7 +724,6 @@ const I18N = {
     stu_select_class: "Course Section:",
     stu_unselected_class_opt: "-- No class selected - Outside scheduled hours --",
     stu_no_course_desc: "Enter your Student ID to link your enrolled classes (only required once per semester).",
-    stu_need_qr_desc: "Please scan the Course Onboarding QR code provided by your Lecturer in the first session to connect.",
     stu_scan_onboard_qr: "Scan Course QR Code",
     stu_toggle_api_link: "Advanced Connection Settings",
     stu_api_url_label: "Server Endpoint (Web App URL):",
@@ -694,13 +739,13 @@ const I18N = {
     stu_one_tap_checkin_btn: "CHECK IN NOW",
     stu_submitting_btn: "Submitting attendance...",
     tea_login_title: "Lecturer Sign In",
-    tea_login_desc: "Use your Master Key on personal devices (recommended). Use the 6-digit session code only on public classroom PCs.",
+    tea_login_desc: "Enter the 6-digit session code from Google Sheet or your Master Key.",
     tea_scan_pair_qr: "Scan Pairing QR Code",
     tea_config_url_link: "Configure Connection URL",
-    tea_reset_url_btn: "Change / Clear Saved Server URL",
+    tea_reset_url_btn: "Restore Default URL",
     tea_api_url_label: "Server Endpoint (Cell B4 in Google Sheet):",
-    tea_token_label: "Master Key or 6-Digit Session Code (Public PC):",
-    tea_token_placeholder: "Enter Master Key (recommended) or 6-digit code...",
+    tea_token_label: "Session Code (6 digits) or Master Key:",
+    tea_token_placeholder: "Enter 6-digit code or Master Key...",
     tea_session_type_label: "Sign-In Persistence Mode:",
     tea_persist_phone: "Personal Lecturer Device (Keep Signed In)",
     tea_persist_pc: "Classroom Computer (Auto Sign-Out After 60 Minutes)",
@@ -741,6 +786,14 @@ const I18N = {
     ERR_GPS_UNAVAILABLE: "[GPS SIGNAL ERROR] Browser has Location permission, but your phone could not lock onto an indoor GPS signal. Please turn on Wi-Fi (for indoor positioning) and Location Services on your phone, then try again.",
     ERR_SERVER_BUSY: "System is processing requests, please wait a moment...",
     ERR_UNAUTHORIZED: "[UNAUTHORIZED] Invalid or expired session code. Please check Cell C9 in your Google Sheet.",
+    ERR_MISSING_FIELDS: "[MISSING INFO] Please fill in all required fields.",
+    ERR_INVALID_CLASS: "[INVALID CLASS] Class code is incorrect or does not exist.",
+    ERR_NOT_FOUND: "[NOT FOUND] The requested data could not be found.",
+    ERR_NO_SESSION: "[NO SESSION] No attendance session has been opened for this class yet.",
+    ERR_NETWORK: "[NETWORK ERROR] Could not reach the server. Please check your internet connection and try again.",
+    ERR_TIMEOUT: "[TIMEOUT] The server took too long to respond. Please try again.",
+    ERR_PIN_ROUND1: "[ROUND 2 ONLY] The 10-second PIN mode only applies to Round 2.",
+    ERR_AUTH_LOCKED: "[TEMPORARILY LOCKED] Too many incorrect 6-digit codes. Please try again in {mins} minutes.",
     DEVICE_RESET_OK: "[UNLOCKED] Device lock has been reset for Student ID {id}.",
     btn_open_external_browser: "Open in main browser",
     btn_copy_browser_url: "Copy link for Safari / Chrome",
@@ -770,7 +823,7 @@ const I18N = {
     ERR_ROUND2_ALREADY_USED: "[ROUND 2 USED] Maximum 1 Round 2 session per class day.",
     ERR_REOPEN_BLOCKED_BY_P2: "[REOPEN P1 BLOCKED] Cannot reopen Round 1 because Round 2 has already been opened today.",
     ERR_FINAL_READ_ONLY: "[READ ONLY] Final Result tab is read-only. Switch to Round 1 or Round 2 tab to mark manually.",
-    ERR_PRIVATE_BROWSING: "[PRIVATE / INCOGNITO MODE] Do not register or check in inside a Private/Incognito tab (storage is wiped on close, causing device lock). Please open a normal Safari or Chrome tab.",
+    ERR_PRIVATE_BROWSING: "You are in private/incognito mode, so this device cannot be saved. Open this link in regular Safari or Chrome (not incognito) and try again.",
     tea_cancel_mistaken_btn: "Cancel Mistaken",
     tea_cancel_mistaken_title: "Delete mistaken session opened today (Excluded from history)",
     stu_p2_pin_hint: "Auto-submits once all 4 digits are typed",
@@ -946,13 +999,12 @@ function restoreProfilesFromCompactCookie_() {
     const raw = safeGetCookie('cc_stu_min_profile', '');
     if (!raw) return null;
     const m = JSON.parse(raw);
-    const normApi = normalizeApiUrl(m && m.a);
-    if (!m || !m.i || !m.s || !normApi) return null;
+    if (!m || !m.i || !m.s) return null;
     const restored = {};
     restored[m.i] = {
       installationId: m.i,
-      lecturerName: m.l || DEFAULT_LECTURER_NAME || 'Giảng viên',
-      apiUrl: normApi,
+      lecturerName: m.l || DEFAULT_LECTURER_NAME,
+      apiUrl: normalizeApiUrl(m.a),
       studentId: m.s,
       fullName: m.n || m.s,
       enrolledClasses: Array.isArray(m.c)
@@ -1089,12 +1141,7 @@ function migrateStoredUrls() {
   let changed = false;
   Object.keys(profiles).forEach(k => {
     const p = profiles[k];
-    const norm = normalizeApiUrl(p && p.apiUrl);
-    if (!norm) {
-      delete profiles[k];
-      changed = true;
-      return;
-    }
+    const norm = normalizeApiUrl(p.apiUrl);
     if (p.apiUrl !== norm) {
       p.apiUrl = norm;
       changed = true;
@@ -1114,10 +1161,7 @@ function migrateStoredUrls() {
   const tAuth = getTeacherAuth();
   if (tAuth) {
     const norm = normalizeApiUrl(tAuth.apiUrl);
-    if (!norm) {
-      safeRemoveLocal('cc_teacher_auth');
-      safeRemoveSession('cc_teacher_auth');
-    } else if (tAuth.apiUrl !== norm) {
+    if (tAuth.apiUrl !== norm) {
       tAuth.apiUrl = norm;
       safeSetLocal('cc_teacher_auth', JSON.stringify(tAuth));
     }
@@ -1331,37 +1375,71 @@ function stripRemainingEmojis(text) {
   if (!text) return '';
   return String(text)
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
-    .replace(/\s{2,}/g, ' ')
+    .replace(/[^\S\n]{2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function getBackendTimeoutMs(action) {
+  const a = String(action || '');
+  if (a === 'TEACHER_REBUILD_REPORT') return 90000;
+  if (a === 'STUDENT_CHECKIN') return 25000;
+  if (a.indexOf('TEACHER_') === 0 && a !== 'TEACHER_GET_STATE' && a !== 'TEACHER_AUTH') return 45000;
+  return 15000;
 }
 
 async function callBackend(apiUrl, payload, retries = 2) {
   const targetUrl = normalizeApiUrl(apiUrl);
+  const action = payload && payload.action ? String(payload.action) : '';
+  const netRetryOk = action !== 'TEACHER_AUTH' && (
+    ['PING', 'TEACHER_GET_STATE', 'STUDENT_CHECKIN', 'CHECK_RECEIPT'].indexOf(action) !== -1 ||
+    Boolean(payload && payload.requestId)
+  );
+  const timeoutMs = getBackendTimeoutMs(action);
+  let lastErr = { ok: false, code: 'ERR_NETWORK' };
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    let timedOut = false;
     try {
       const response = await fetch(targetUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload),
-        redirect: 'follow'
+        redirect: 'follow',
+        signal: controller ? controller.signal : undefined
       });
-      const data = await response.json();
-      if (data && (data.calendarEvents || data.classSchedules || data.classes)) {
-        ingestServerScheduleData(data);
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        data = null;
       }
-      if (data.code === 'ERR_SERVER_BUSY' && attempt < retries) {
-        showStatus(I18N[currentLang].ERR_SERVER_BUSY, 'warn');
-        await new Promise(r => setTimeout(r, 1100 + Math.random() * 800));
-        continue;
+      if (timer) clearTimeout(timer);
+      if (!data || typeof data !== 'object') {
+        lastErr = { ok: false, code: 'ERR_NETWORK', message: response.ok ? 'Invalid response' : 'HTTP ' + response.status };
+      } else {
+        if (data.calendarEvents || data.classSchedules || data.classes) {
+          ingestServerScheduleData(data);
+        }
+        if (data.code === 'ERR_SERVER_BUSY' && attempt < retries) {
+          showStatus(I18N[currentLang].ERR_SERVER_BUSY, 'warn');
+          await new Promise(r => setTimeout(r, 1100 + Math.random() * 800));
+          continue;
+        }
+        return data;
       }
-      return data;
     } catch (err) {
-      if (attempt === retries) {
-        return { ok: false, code: 'ERR_NETWORK', message: err.message };
-      }
-      await new Promise(r => setTimeout(r, 900));
+      if (timer) clearTimeout(timer);
+      timedOut = Boolean(err && err.name === 'AbortError');
+      lastErr = timedOut
+        ? { ok: false, code: 'ERR_TIMEOUT', message: err.message }
+        : { ok: false, code: 'ERR_NETWORK', message: err && err.message };
     }
+    if (!netRetryOk || attempt === retries) return lastErr;
+    await new Promise(r => setTimeout(r, 900));
   }
+  return lastErr;
 }
 
 let isAppModalBusy = false;
@@ -1445,12 +1523,25 @@ function openAppModal(title, bodyText, confirmLabel, onConfirm, options = {}) {
       }
     };
   }
+  appModalReturnFocusEl = document.activeElement;
   document.getElementById('app-modal').classList.remove('hidden');
+  if (cardEl && typeof cardEl.focus === 'function') cardEl.focus();
+}
+
+let appModalReturnFocusEl = null;
+let confirmModalReturnFocusEl = null;
+
+function restoreModalFocus_(el) {
+  if (el && el.isConnected && typeof el.focus === 'function') {
+    try { el.focus(); } catch (e) {}
+  }
 }
 
 function closeAppModal(force = false) {
   if (isAppModalBusy && !force) return;
   document.getElementById('app-modal').classList.add('hidden');
+  restoreModalFocus_(appModalReturnFocusEl);
+  appModalReturnFocusEl = null;
   const cardEl = document.getElementById('app-modal-card');
   if (cardEl) cardEl.classList.remove('modal-wide');
   const extraBtn = document.getElementById('app-modal-extra');
@@ -1511,7 +1602,10 @@ function openConfirmModal(title, bodyText, confirmLabel, onConfirm, options = {}
     }
   };
 
+  confirmModalReturnFocusEl = document.activeElement;
   modalEl.classList.remove('hidden');
+  const confirmCardEl = modalEl.querySelector('.modal-card');
+  if (confirmCardEl && typeof confirmCardEl.focus === 'function') confirmCardEl.focus();
   if (options && typeof options.onMount === 'function') {
     options.onMount(confirmBtn, cancelBtn);
   }
@@ -1521,6 +1615,8 @@ function closeConfirmModal(force = false) {
   if (isConfirmModalBusy && !force) return;
   const modalEl = document.getElementById('confirm-modal');
   if (modalEl) modalEl.classList.add('hidden');
+  restoreModalFocus_(confirmModalReturnFocusEl);
+  confirmModalReturnFocusEl = null;
   const cancelBtn = document.getElementById('confirm-modal-cancel');
   if (cancelBtn) cancelBtn.disabled = false;
   const confirmBtn = document.getElementById('confirm-modal-ok');
@@ -1540,7 +1636,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-window.cachedGPS = null;
 window.activeGpsPromise = null;
 window.lastVerifiedLiveGps = null; // { pos, verifiedAtMs } — 15s live handshake between Check GPS / Onboard and Check-In
 
@@ -1687,7 +1782,6 @@ function acquireLiveHighAccuracyGps(maxWaitMs = 4500, settleAfterFirstFixMs = 25
 }
 
 function getAccuratePosition() {
-  window.cachedGPS = null;
 
   if (
     window.lastVerifiedLiveGps &&
@@ -1709,7 +1803,6 @@ function getAccuratePosition() {
   window.activeGpsPromise = (async () => {
     try {
       const pos = await acquireLiveHighAccuracyGps(4500, 2500, 100);
-      window.cachedGPS = null;
       hideGpsPermissionGuideBox();
       return pos;
     } catch (err1) {
@@ -1722,7 +1815,6 @@ function getAccuratePosition() {
         if (!navigator.geolocation) return reject(err1);
         navigator.geolocation.getCurrentPosition(
           (pos2) => {
-            window.cachedGPS = null;
             if (isValidGpsPos(pos2)) {
               hideGpsPermissionGuideBox();
               resolve(pos2);
@@ -1739,7 +1831,6 @@ function getAccuratePosition() {
       });
     } finally {
       window.activeGpsPromise = null;
-      window.cachedGPS = null;
     }
   })();
 
@@ -1959,13 +2050,6 @@ function openInExternalMainBrowser() {
   }
 }
 
-async function sha256Browser(message) {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => ('00' + b.toString(16)).slice(-2)).join('');
-}
-
 function syncStudentViewportScrollLock() {
   document.body.classList.remove('student-locked-scroll');
 }
@@ -1990,11 +2074,10 @@ function switchMode(mode) {
     const auth = getTeacherAuth();
     if (auth && typeof restoreTeacherSessionOnLoad === 'function') {
       restoreTeacherSessionOnLoad(auth);
-    } else if (typeof syncTeacherApiBoxVisibility === 'function') {
-      syncTeacherApiBoxVisibility();
     }
   } else {
-    if (typeof stopTeacherPolling === 'function') stopTeacherPolling();
+    if (typeof stopAllTeacherTimers === 'function') stopAllTeacherTimers();
+    else if (typeof stopTeacherPolling === 'function') stopTeacherPolling();
     teaBtn.classList.remove('active');
     stuBtn.classList.add('active');
     teaView.classList.add('hidden');
@@ -2014,7 +2097,6 @@ function toggleLanguage() {
   safeSetLocal('cc_lang', currentLang);
   applyLanguage();
   if (typeof renderStudentCourseSelectors === 'function') renderStudentCourseSelectors();
-  if (typeof syncTeacherApiBoxVisibility === 'function') syncTeacherApiBoxVisibility();
   if (typeof onAdvStudentGpsToggle === 'function') onAdvStudentGpsToggle();
   if (typeof teacherState !== 'undefined' && teacherState && typeof applyTeacherState === 'function') {
     applyTeacherState(teacherState, false);
@@ -2107,18 +2189,6 @@ function checkIosStandaloneNotice() {
   }
 }
 
-function decodeWebSafeBase64Json_(b64) {
-  let std = String(b64 || '').trim().replace(/-/g, '+').replace(/_/g, '/');
-  while (std.length % 4 !== 0) std += '=';
-  const bin = atob(std);
-  if (typeof TextDecoder !== 'undefined') {
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
-  }
-  return JSON.parse(bin);
-}
-
 function handleUrlDeepLinks() {
   const params = new URLSearchParams(window.location.search);
   const onboardB64 = params.get('onboard');
@@ -2126,36 +2196,21 @@ function handleUrlDeepLinks() {
 
   if (onboardB64) {
     try {
-      const decoded = decodeWebSafeBase64Json_(onboardB64);
-      const normApi = normalizeApiUrl(decoded && decoded.api);
-      if (normApi) {
+      const decoded = JSON.parse(atob(onboardB64.replace(/-/g, '+').replace(/_/g, '/')));
+      if (decoded.api) {
+        const normApi = normalizeApiUrl(decoded.api);
         window.customOnboardApiUrl = normApi;
-        window.customOnboardInstId = String(decoded.inst || '').trim();
-        window.customOnboardLecturerName = String(decoded.name || '').trim();
         const profiles = getStudentProfiles();
         const instIds = Object.keys(profiles);
         if (instIds.length === 0) {
           const addBox = document.getElementById('box-add-course');
           if (addBox) addBox.classList.remove('hidden');
         } else {
-          const matchedKey = instIds.find(k =>
-            (window.customOnboardInstId && k === window.customOnboardInstId) ||
-            (profiles[k] && normalizeApiUrl(profiles[k].apiUrl) === normApi)
-          );
-          if (matchedKey) {
-            profiles[matchedKey].apiUrl = normApi;
-            if (window.customOnboardLecturerName) {
-              profiles[matchedKey].lecturerName = window.customOnboardLecturerName;
-            }
-            safeSetLocal('cc_student_profiles', JSON.stringify(profiles));
-            safeSetLocal('cc_active_inst', matchedKey);
-          } else if (typeof autoLinkAdditionalLecturerProfile === 'function') {
-            autoLinkAdditionalLecturerProfile(
-              normApi,
-              window.customOnboardInstId,
-              window.customOnboardLecturerName
-            );
-          }
+          // Student already bound their MSSV on this device: keep MSSV input hidden and update API URL silently
+          instIds.forEach(k => {
+            profiles[k].apiUrl = normApi;
+          });
+          safeSetLocal('cc_student_profiles', JSON.stringify(profiles));
           const addBox = document.getElementById('box-add-course');
           if (addBox) addBox.classList.add('hidden');
         }
@@ -2163,13 +2218,11 @@ function handleUrlDeepLinks() {
     } catch (e) {}
   } else if (pairB64) {
     try {
-      const decoded = decodeWebSafeBase64Json_(pairB64);
-      const normApi = normalizeApiUrl(decoded && decoded.api);
-      if (normApi && decoded.tkey) {
-        const persistSel = document.getElementById('sel-tea-persistence');
-        if (persistSel) persistSel.value = 'LOCAL';
+      const decoded = JSON.parse(atob(pairB64.replace(/-/g, '+').replace(/_/g, '/')));
+      if (decoded.api && decoded.tkey) {
+        try { history.replaceState(null, '', location.pathname + location.hash); } catch (e) {}
         switchMode('TEACHER');
-        document.getElementById('inp-tea-api').value = normApi;
+        document.getElementById('inp-tea-api').value = normalizeApiUrl(decoded.api);
         document.getElementById('inp-tea-token').value = decoded.tkey;
         loginTeacher();
       }
@@ -2187,11 +2240,11 @@ function formatServerMessage(code, params = {}, fallback = '') {
 
 const INLINE_STATUS_IDS = [
   'onboard-inline-status',
-  'gps-inline-status',
   'checkin-inline-status',
   'tea-login-inline-status',
   'tea-session-inline-status',
-  'tea-admin-inline-status'
+  'tea-admin-inline-status',
+  'tea-rules-inline-status'
 ];
 
 function showInlineStatus(targetId, msg, type = 'warn') {
@@ -2204,7 +2257,17 @@ function showInlineStatus(targetId, msg, type = 'warn') {
   el.className = 'inline-feedback alert-' + variant;
   el.textContent = stripRemainingEmojis(msg);
   el.classList.remove('hidden');
+  if (inlineStatusTimers_[targetId]) { clearTimeout(inlineStatusTimers_[targetId]); delete inlineStatusTimers_[targetId]; }
+  if (variant === 'success') {
+    const shownText = el.textContent;
+    inlineStatusTimers_[targetId] = setTimeout(() => {
+      delete inlineStatusTimers_[targetId];
+      if (el.textContent === shownText && el.classList.contains('alert-success')) el.classList.add('hidden');
+    }, 6000);
+  }
 }
+
+const inlineStatusTimers_ = {};
 
 function showStatus(msg, type = 'warn', preferredTargetId = '') {
   if (preferredTargetId && document.getElementById(preferredTargetId)) {
@@ -2266,15 +2329,66 @@ function formatClassOptionLabel(c) {
   return `${id} — ${name}`;
 }
 
+function foldSearchText(str) {
+  return String(str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase().trim();
+}
+
 function escapeHtml(str) {
   return String(str === null || str === undefined ? '' : str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeJsArg(s) {
+  return escapeHtml(String(s === null || s === undefined ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
 }
 
 function getTodayDateKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+/* v3.8.0 offline indicator and undo toast */
+let undoToastTimer_ = null;
+
+function hideUndoToast() {
+  const el = document.getElementById('undo-toast');
+  if (undoToastTimer_) { clearTimeout(undoToastTimer_); undoToastTimer_ = null; }
+  if (el) { el.classList.add('hidden'); el.textContent = ''; }
+}
+
+function showUndoToast(message, undoLabel, onUndo, ms = 5000) {
+  const el = document.getElementById('undo-toast');
+  if (!el) return;
+  hideUndoToast();
+  const span = document.createElement('span');
+  span.textContent = stripRemainingEmojis(message);
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = undoLabel;
+  btn.onclick = () => {
+    hideUndoToast();
+    if (typeof onUndo === 'function') onUndo();
+  };
+  el.appendChild(span);
+  el.appendChild(btn);
+  el.classList.remove('hidden');
+  undoToastTimer_ = setTimeout(hideUndoToast, ms);
+}
+
+function updateOfflineBar_() {
+  const el = document.getElementById('offline-bar');
+  if (!el) return;
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  el.textContent = currentLang === 'en'
+    ? 'No internet connection. Changes cannot be saved until you are back online.'
+    : 'Mất kết nối mạng. Thay đổi chưa thể lưu cho đến khi có mạng lại.';
+  el.classList.toggle('hidden', !offline);
+}
+
+window.addEventListener('online', updateOfflineBar_);
+window.addEventListener('offline', updateOfflineBar_);
+document.addEventListener('DOMContentLoaded', updateOfflineBar_);

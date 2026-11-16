@@ -1,6 +1,6 @@
 /**
  * ============================================================================
- * STUDENT CONTROLLER (js/student.js — v3.7.5)
+ * STUDENT CONTROLLER (js/student.js — v3.9.2)
  *  - Course & Lecturer Selector with Real-Time Period / Calendar Auto-Select
  *  - Official Attendance Score (Base 10.0), Same-Day Session Merging, Near-Limit Warning & Exam Ban (CẤM THI)
  *  - Live Classroom Group Assignment Card (#stu-group-card)
@@ -17,7 +17,6 @@ let checkInCooldownTimer = null;
 let stuAttHistoryExpanded = false;
 let studentLivePollTimer = null;
 let lastStudentWakeSyncMs = 0;
-window.cachedGPS = null; // Kept null so check-in always verifies fresh live GPS
 window.lockedRound2GpsPos = null; // Pre-locked live GPS coordinate during Round 2 10-second PIN entry
 window.pinBoxOpenedAtMs = 0;
 window.pinFirstKeyAtMs = 0;
@@ -63,15 +62,7 @@ window.addEventListener('DOMContentLoaded', () => {
   migrateStoredUrls();
 
   const teaApiInput = document.getElementById('inp-tea-api');
-  const savedTeaApi = normalizeApiUrl(
-    (getTeacherAuth() && getTeacherAuth().apiUrl) ||
-    safeGetLocal('cc_last_teacher_api', '') ||
-    DEFAULT_LECTURER_API
-  );
-  if (teaApiInput) teaApiInput.value = savedTeaApi;
-  if (typeof syncTeacherApiBoxVisibility === 'function') {
-    syncTeacherApiBoxVisibility();
-  }
+  if (teaApiInput) teaApiInput.value = DEFAULT_LECTURER_API;
 
   applyLanguage();
   checkIosStandaloneNotice();
@@ -95,10 +86,16 @@ function startStudentLiveSessionPolling() {
   if (studentLivePollTimer) clearInterval(studentLivePollTimer);
   studentLivePollTimer = setInterval(() => {
     if (!document.hidden && currentMode === 'STUDENT' && !isSubmitting) {
+      // Idle (no open session on the last PING): poll every 10s instead of 5s to spare the server quota.
+      if (!studentAnySessionOpen && Date.now() - studentLastPollMs < 9000) return;
+      studentLastPollMs = Date.now();
       syncStudentLiveScheduleFromServer();
     }
   }, 5000);
 }
+
+let studentAnySessionOpen = true;
+let studentLastPollMs = 0;
 
 /**
  * Fetches live Google Calendar & Period Schedule metadata from Backend in background
@@ -107,29 +104,36 @@ function startStudentLiveSessionPolling() {
 async function syncStudentLiveScheduleFromServer() {
   const profiles = getStudentProfiles();
   const instIds = Object.keys(profiles);
-  let activeInst = safeGetLocal('cc_active_inst', instIds[0] || '');
-  if (!profiles[activeInst] && instIds.length > 0) activeInst = instIds[0];
-  let activeProfile = profiles[activeInst];
-  const apiUrl = normalizeApiUrl(activeProfile ? activeProfile.apiUrl : DEFAULT_LECTURER_API);
-  if (!apiUrl) return;
+  const activeInst = safeGetLocal('cc_active_inst', instIds[0] || '');
+  const activeProfile = profiles[activeInst];
+  const apiUrl = activeProfile ? activeProfile.apiUrl : DEFAULT_LECTURER_API;
 
   try {
     const pingPayload = { action: 'PING' };
     if (activeProfile && activeProfile.studentId) {
       pingPayload.studentId = activeProfile.studentId;
+      const pingCred = safeGetLocal('cc_device_cred', '') || safeGetCookie('cc_device_cred', '');
+      if (pingCred && pingCred.length >= 20) pingPayload.credential = pingCred;
     }
     const pingRes = await callBackend(apiUrl, pingPayload, 1);
     if (pingRes && pingRes.ok) {
+      studentAnySessionOpen = Array.isArray(pingRes.classes) ? pingRes.classes.some(c => c && c.sessionOpenNow) : true;
       ingestServerScheduleData(pingRes);
+      let enrolledChanged = false;
+      // Merge any updated class metadata (such as scheduleInfo / sessionOpenNow / attendanceStats) into stored enrolledClasses
       if (activeProfile && Array.isArray(pingRes.classes) && Array.isArray(activeProfile.enrolledClasses)) {
         const serverClassMap = {};
         pingRes.classes.forEach(sc => {
           if (sc && sc.classId) serverClassMap[sc.classId] = sc;
         });
         const statsMap = (pingRes.studentStats && typeof pingRes.studentStats === 'object') ? pingRes.studentStats : {};
+        const stuAuthed = pingRes.studentAuth === true;
+        const enrolledBeforeJson = JSON.stringify(activeProfile.enrolledClasses);
         activeProfile.enrolledClasses = activeProfile.enrolledClasses.map(ec => {
+          ec = Object.assign({}, ec);
+          delete ec.activeQrSecret;
           const sc = serverClassMap[ec.classId];
-          const st = statsMap[ec.classId] || ec.attendanceStats || null;
+          const st = (stuAuthed && statsMap[ec.classId]) || ec.attendanceStats || null;
           return sc ? Object.assign({}, ec, {
             className: sc.className || ec.className,
             scheduleInfo: sc.scheduleInfo || ec.scheduleInfo,
@@ -138,64 +142,13 @@ async function syncStudentLiveScheduleFromServer() {
             activeSessionId: String(sc.activeSessionId || ''),
             activeQrMode: String(sc.activeQrMode || 'STATIC'),
             round2OpenedToday: Boolean(sc.round2OpenedToday),
-            activeGroupSplit: sc.activeGroupSplit !== undefined ? sc.activeGroupSplit : (ec.activeGroupSplit || null),
+            activeGroupSplit: (stuAuthed && sc.activeGroupSplit !== undefined) ? sc.activeGroupSplit : (ec.activeGroupSplit || null),
             attendanceStats: st
           }) : Object.assign({}, ec, { attendanceStats: st });
         });
-        saveStudentProfile(activeInst, activeProfile);
+        enrolledChanged = JSON.stringify(activeProfile.enrolledClasses) !== enrolledBeforeJson;
+        if (enrolledChanged) saveStudentProfile(activeInst, activeProfile);
       }
-
-      // If student is linked with multiple lecturers and the active lecturer has no open/scheduled class now, check other lecturers once per 25s
-      if (instIds.length > 1 && activeProfile) {
-        const activeEnrolled = Array.isArray(activeProfile.enrolledClasses) ? activeProfile.enrolledClasses : [];
-        const activeHasOpenOrSched =
-          activeEnrolled.some(c => c && c.sessionOpenNow) ||
-          Boolean(resolveActiveClassBySchedule(activeEnrolled, new Date()).matchedClassId);
-        const nowMs = Date.now();
-        if (!activeHasOpenOrSched && (!window._lastMultiInstCheckMs || nowMs - window._lastMultiInstCheckMs > 25000)) {
-          window._lastMultiInstCheckMs = nowMs;
-          for (let i = 0; i < instIds.length; i++) {
-            const otherId = instIds[i];
-            if (otherId === activeInst) continue;
-            const otherProf = profiles[otherId];
-            const otherApi = normalizeApiUrl(otherProf && otherProf.apiUrl);
-            if (!otherProf || !otherApi) continue;
-            try {
-              const oRes = await callBackend(otherApi, { action: 'PING', studentId: otherProf.studentId }, 0);
-              if (oRes && oRes.ok && Array.isArray(oRes.classes)) {
-                const oMap = {};
-                oRes.classes.forEach(sc => { if (sc && sc.classId) oMap[sc.classId] = sc; });
-                const oStats = (oRes.studentStats && typeof oRes.studentStats === 'object') ? oRes.studentStats : {};
-                otherProf.enrolledClasses = (otherProf.enrolledClasses || []).map(ec => {
-                  const sc = oMap[ec.classId];
-                  const st = oStats[ec.classId] || ec.attendanceStats || null;
-                  return sc ? Object.assign({}, ec, {
-                    className: sc.className || ec.className,
-                    scheduleInfo: sc.scheduleInfo || ec.scheduleInfo,
-                    sessionOpenNow: Boolean(sc.sessionOpenNow),
-                    activeRound: Number(sc.activeRound || 1),
-                    activeSessionId: String(sc.activeSessionId || ''),
-                    activeQrMode: String(sc.activeQrMode || 'STATIC'),
-                    round2OpenedToday: Boolean(sc.round2OpenedToday),
-                    activeGroupSplit: sc.activeGroupSplit !== undefined ? sc.activeGroupSplit : (ec.activeGroupSplit || null),
-                    attendanceStats: st
-                  }) : Object.assign({}, ec, { attendanceStats: st });
-                });
-                saveStudentProfile(otherId, otherProf);
-                const otherOpenOrSched =
-                  otherProf.enrolledClasses.some(c => c && c.sessionOpenNow) ||
-                  Boolean(resolveActiveClassBySchedule(otherProf.enrolledClasses, new Date()).matchedClassId);
-                if (otherOpenOrSched) {
-                  safeSetLocal('cc_active_inst', otherId);
-                  renderStudentCourseSelectors();
-                  return;
-                }
-              }
-            } catch (err) {}
-          }
-        }
-      }
-
       if (currentMode === 'STUDENT' && instIds.length > 0) {
         const pinBox = document.getElementById('stu-p2-pin-box');
         const isPinBoxOpen = Boolean(pinBox && !pinBox.classList.contains('hidden'));
@@ -217,7 +170,8 @@ async function syncStudentLiveScheduleFromServer() {
           }
           cancelStudentPin10sModal();
         }
-        onStudentInstChange(true);
+        const selFocusEl = document.getElementById('sel-student-class');
+        if (enrolledChanged || !selFocusEl || document.activeElement !== selFocusEl) onStudentInstChange(true);
       }
     }
   } catch (e) {}
@@ -228,7 +182,6 @@ function renderStudentCourseSelectors() {
   const instIds = Object.keys(profiles);
   const hasBox = document.getElementById('student-has-courses');
   const noBox = document.getElementById('student-no-courses');
-  const noDesc = document.getElementById('stu-no-course-desc');
   const addBox = document.getElementById('box-add-course');
   const inpId = document.getElementById('inp-student-id');
   const lblId = document.getElementById('lbl-student-id');
@@ -236,27 +189,19 @@ function renderStudentCourseSelectors() {
   const rulesBox = document.getElementById('onboard-compact-rules');
 
   if (instIds.length === 0) {
-    const hasOnboardApi = Boolean(normalizeApiUrl(window.customOnboardApiUrl || DEFAULT_LECTURER_API));
     hasBox.classList.add('hidden');
     noBox.classList.remove('hidden');
-    if (noDesc) {
-      const descKey = hasOnboardApi ? 'stu_no_course_desc' : 'stu_need_qr_desc';
-      noDesc.setAttribute('data-i18n', descKey);
-      if (I18N[currentLang] && I18N[currentLang][descKey]) {
-        noDesc.textContent = I18N[currentLang][descKey];
-      }
-    }
-    addBox.classList.toggle('hidden', !hasOnboardApi);
+    addBox.classList.remove('hidden');
     if (rulesBox) rulesBox.classList.remove('hidden');
     if (inpId) {
-      inpId.disabled = !hasOnboardApi;
+      inpId.disabled = false;
       inpId.readOnly = false;
-      inpId.classList.toggle('hidden', !hasOnboardApi);
+      inpId.classList.remove('hidden');
     }
-    if (lblId) lblId.classList.toggle('hidden', !hasOnboardApi);
+    if (lblId) lblId.classList.remove('hidden');
     if (btnSubmit) {
-      btnSubmit.disabled = !hasOnboardApi;
-      btnSubmit.classList.toggle('hidden', !hasOnboardApi);
+      btnSubmit.disabled = false;
+      btnSubmit.classList.remove('hidden');
     }
     renderStudentAttendanceSummary('', '');
     return;
@@ -504,26 +449,8 @@ function getLocalStudentAttendanceHistory(studentId, classId) {
   return list;
 }
 
-function computeAttendanceScoreAndExamStatus(countP, countL, countE, countA, manualExamBan = false) {
-  const p = Number(countP || 0);
-  const l = Number(countL || 0);
-  const e = Number(countE || 0);
-  const a = Number(countA || 0);
-  const equivAbsences = Math.round((a + (e * 0.5)) * 10) / 10;
-  const attendanceScore = Math.round((10.0 - (a * 1.0) - (l * 0.5) - (e * 0.5)) * 10) / 10;
-  const isBanned = Boolean(manualExamBan) || (equivAbsences > 6.0) || (attendanceScore < 0.0);
-  const isWarn = !isBanned && ((equivAbsences >= 5.5 && equivAbsences <= 6.0) || (attendanceScore >= 0.0 && attendanceScore <= 1.0));
-  return {
-    P: p,
-    L: l,
-    E: e,
-    A: a,
-    total: p + l + e + a,
-    equivAbsences,
-    attendanceScore,
-    manualExamBan: Boolean(manualExamBan),
-    examStatus: isBanned ? 'BAN' : (isWarn ? 'WARN' : 'OK')
-  };
+function computeAttendanceScoreAndExamStatus(countP, countL, countE, countA, manualExamBan = false, rules = null) {
+  return evaluateAttendanceRules(countP, countL, countE, countA, manualExamBan, rules);
 }
 
 function getMergedStudentClassStats(studentId, classId, serverStats) {
@@ -534,7 +461,7 @@ function getMergedStudentClassStats(studentId, classId, serverStats) {
     : { P: 0, L: 0, E: 0, A: 0, total: 0, manualExamBan: false, history: [] };
 
   if (!sid || !cid) {
-    const base = computeAttendanceScoreAndExamStatus(srv.P, srv.L, srv.E, srv.A, srv.manualExamBan);
+    const base = computeAttendanceScoreAndExamStatus(srv.P, srv.L, srv.E, srv.A, srv.manualExamBan, srv.rules);
     base.history = [];
     return base;
   }
@@ -574,39 +501,39 @@ function getMergedStudentClassStats(studentId, classId, serverStats) {
     });
   }
 
-  const localHistory = getLocalStudentAttendanceHistory(sid, cid);
+  const serverDayKeys = new Set();
+  if (Array.isArray(srv.history)) {
+    srv.history.forEach(item => {
+      if (!item) return;
+      const k = normalizeSessionDayKey(item.dayKey || item.date || item.sessionId || '');
+      if (k && String(item.status || '-').trim().toUpperCase() !== 'OPEN') serverDayKeys.add(k);
+    });
+  }
+  const srvCountTotal = Number(srv.total || 0) || (Number(srv.P || 0) + Number(srv.L || 0) + Number(srv.E || 0) + Number(srv.A || 0));
+  const useLocalSupplement = (Array.isArray(srv.history) && srv.history.length > 0) || srvCountTotal === 0;
+
+  let supP = 0, supL = 0, supE = 0, supA = 0;
+  const localHistory = useLocalSupplement ? getLocalStudentAttendanceHistory(sid, cid) : [];
   localHistory.forEach(item => {
     if (!item || !item.dayKey) return;
     const dKey = normalizeSessionDayKey(item.dayKey);
     if (hasSheetSchedule && /^\d{4}-\d{2}-\d{2}$/.test(dKey) && !allowedSheetSet.has(dKey)) {
       return;
     }
+    if (serverDayKeys.has(dKey) || dayMap[dKey]) return;
     const localSt = item.status === '-' ? 'A' : item.status;
-    const existing = dayMap[dKey];
-    if (!existing) {
-      dayMap[dKey] = {
-        dayKey: dKey,
-        status: localSt,
-        date: item.date || formatDisplayDateFromKey(dKey),
-        time: item.time || '',
-        ts: Number(item.ts || 0),
-        fromServer: false
-      };
-    } else {
-      // Server 'E' or 'P' approved on sheet takes priority; local check-in upgrades 'A' if checked in today
-      let mergedSt = existing.status;
-      if (localSt === 'P' || existing.status === 'P') mergedSt = 'P';
-      else if (localSt === 'E' || existing.status === 'E') mergedSt = 'E';
-      else if (localSt === 'L' || existing.status === 'L') mergedSt = 'L';
-      dayMap[dKey] = {
-        dayKey: dKey,
-        status: mergedSt,
-        date: existing.date || item.date || formatDisplayDateFromKey(dKey),
-        time: item.time || existing.time || '',
-        ts: Math.max(Number(item.ts || 0), Number(existing.ts || 0)),
-        fromServer: true
-      };
-    }
+    dayMap[dKey] = {
+      dayKey: dKey,
+      status: localSt,
+      date: item.date || formatDisplayDateFromKey(dKey),
+      time: item.time || '',
+      ts: Number(item.ts || 0),
+      fromServer: false
+    };
+    if (localSt === 'P') supP++;
+    else if (localSt === 'L') supL++;
+    else if (localSt === 'E') supE++;
+    else if (localSt === 'A') supA++;
   });
 
   const mergedHistory = Object.values(dayMap).sort((a, b) => {
@@ -614,24 +541,13 @@ function getMergedStudentClassStats(studentId, classId, serverStats) {
     return b.ts - a.ts;
   });
 
-  let histP = 0, histL = 0, histE = 0, histA = 0;
-  mergedHistory.forEach(item => {
-    const v = item.status;
-    if (v === 'P') histP++;
-    else if (v === 'L') histL++;
-    else if (v === 'E') histE++;
-    else if (v === 'A') histA++;
-  });
+  const finalP = Number(srv.P || 0) + supP;
+  const finalL = Number(srv.L || 0) + supL;
+  const finalE = Number(srv.E || 0) + supE;
+  const finalA = Number(srv.A || 0) + supA;
 
-  const srvTotal = Number(srv.P || 0) + Number(srv.L || 0) + Number(srv.E || 0) + Number(srv.A || 0);
-  const histTotal = histP + histL + histE + histA;
-
-  const finalP = srvTotal > histTotal ? Math.max(Number(srv.P || 0), histP) : (histTotal > 0 ? histP : Number(srv.P || 0));
-  const finalL = srvTotal > histTotal ? Math.max(Number(srv.L || 0), histL) : (histTotal > 0 ? histL : Number(srv.L || 0));
-  const finalE = srvTotal > histTotal ? Math.max(Number(srv.E || 0), histE) : (histTotal > 0 ? histE : Number(srv.E || 0));
-  const finalA = srvTotal > histTotal ? Math.max(Number(srv.A || 0), histA) : (histTotal > 0 ? histA : Number(srv.A || 0));
-
-  const computed = computeAttendanceScoreAndExamStatus(finalP, finalL, finalE, finalA, srv.manualExamBan);
+  const computed = computeAttendanceScoreAndExamStatus(finalP, finalL, finalE, finalA, srv.manualExamBan, srv.rules);
+  computed.rules = srv.rules || null;
   computed.history = mergedHistory;
   return computed;
 }
@@ -642,7 +558,13 @@ function updateStoredStudentClassStats(instId, classId, statsObj) {
   const p = profiles[instId];
   if (!p || !Array.isArray(p.enrolledClasses)) return;
   p.enrolledClasses = p.enrolledClasses.map(ec =>
-    ec && ec.classId === classId ? Object.assign({}, ec, { attendanceStats: statsObj }) : ec
+    ec && ec.classId === classId
+      ? Object.assign({}, ec, {
+          attendanceStats: statsObj.rules
+            ? statsObj
+            : Object.assign({}, statsObj, { rules: ec.attendanceStats ? ec.attendanceStats.rules : undefined })
+        })
+      : ec
   );
   saveStudentProfile(instId, p);
 }
@@ -682,7 +604,7 @@ function renderStudentGroupCard(studentId, classObj) {
 
   card.innerHTML = `
     <div class="stu-group-header">
-      <span>${isEn ? `Assigned Discussion Group: Group #${myGroup.groupNumber}` : `Nhóm thảo luận trên lớp: Nhóm ${myGroup.groupNumber}`}</span>
+      <span>${isEn ? `Assigned Discussion Group: Group #${escapeHtml(String(myGroup.groupNumber))}` : `Nhóm thảo luận trên lớp: Nhóm ${escapeHtml(String(myGroup.groupNumber))}`}</span>
       <span>${(myGroup.members || []).length} ${isEn ? 'members' : 'thành viên'}</span>
     </div>
     <div class="stu-group-members">${memberNames}</div>
@@ -743,10 +665,15 @@ function renderStudentAttendanceSummary(instId, classId) {
   const countL = Number(st.L || 0);
   const countE = Number(st.E || 0);
   const countA = Number(st.A || 0);
-  const scoreVal = typeof st.attendanceScore === 'number' ? st.attendanceScore : 10.0;
+  const rl = normalizeAttendanceRules(st.rules);
+  const baseVal = rl.baseScore;
+  const banAbsVal = effectiveBanAbsences(rl);
+  const showAbsLimit = rl.banMode === 'BOTH' || rl.banMode === 'ABSENCES';
+  const scoreVal = typeof st.attendanceScore === 'number' ? st.attendanceScore : baseVal;
   const equivVal = typeof st.equivAbsences === 'number' ? st.equivAbsences : 0;
   const examStatus = st.examStatus || 'OK';
   const isEn = currentLang === 'en';
+  const absLimitTxt = showAbsLimit ? `/${banAbsVal}` : '';
   const historyList = Array.isArray(st.history) ? st.history : [];
 
   bar.classList.remove('att-warn-light', 'att-ban-solid');
@@ -760,11 +687,11 @@ function renderStudentAttendanceSummary(instId, classId) {
   if (examStatus === 'BAN') {
     const banReason = st.manualExamBan
       ? (isEn
-          ? `Marked ineligible for exam on official class sheet (Score: ${scoreVal}/10 • Equiv. absences: ${equivVal}x)`
+          ? `Marked ineligible for exam on official class sheet (Score: ${scoreVal}/${baseVal} • Equiv. absences: ${equivVal}x)`
           : `Đã xử lý cấm thi trên danh sách lớp (Điểm CC: ${scoreVal}đ • Vắng quy đổi: ${equivVal} buổi)`)
       : (isEn
-          ? `Score: ${scoreVal}/10 • Equivalent absences: ${equivVal}/6.0 sessions (Exceeds permitted limit)`
-          : `Điểm chuyên cần: ${scoreVal}đ • Vắng quy đổi: ${equivVal}/6 buổi (Vượt mức quy định)`);
+          ? `Score: ${scoreVal}/${baseVal} • Equivalent absences: ${equivVal}${absLimitTxt} sessions (Exceeds permitted limit)`
+          : `Điểm chuyên cần: ${scoreVal}đ • Vắng quy đổi: ${equivVal}${absLimitTxt} buổi (Vượt mức quy định)`);
     warningBannerHtml = `
       <div id="stu-att-warning-banner" class="stu-att-warning-banner">
         <span class="exam-ban-badge">${isEn ? 'EXAM BANNED (CẤM THI)' : 'CẤM THI'}</span>
@@ -773,8 +700,8 @@ function renderStudentAttendanceSummary(instId, classId) {
     `;
   } else if (examStatus === 'WARN') {
     const warnText = isEn
-      ? `Score: ${scoreVal}/10 • Equiv. absences: ${equivVal}/6.0 sessions — Near exam ban threshold!`
-      : `Điểm chuyên cần: ${scoreVal}đ • Vắng quy đổi: ${equivVal}/6 buổi — Cảnh báo sát mức cấm thi!`;
+      ? `Score: ${scoreVal}/${baseVal} • Equiv. absences: ${equivVal}${absLimitTxt} sessions — Near exam ban threshold!`
+      : `Điểm chuyên cần: ${scoreVal}đ • Vắng quy đổi: ${equivVal}${absLimitTxt} buổi — Cảnh báo sát mức cấm thi!`;
     warningBannerHtml = `
       <div id="stu-att-warning-banner" class="stu-att-warning-banner">
         <span class="exam-warn-badge">${isEn ? 'WARNING' : 'CẢNH BÁO'}</span>
@@ -790,18 +717,18 @@ function renderStudentAttendanceSummary(instId, classId) {
       return `<span class="att-dot dot-p"></span><span>${isEn ? 'Present' : 'Có mặt'}</span>`;
     }
     if (statusChar === 'L') {
-      return `<span class="att-dot dot-l"></span><span>${isEn ? 'Late (-0.5pt)' : 'Đi trễ (-0.5đ)'}</span>`;
+      return `<span class="att-dot dot-l"></span><span>${isEn ? `Late (-${rl.deductL}pt)` : `Đi trễ (-${rl.deductL}đ)`}</span>`;
     }
     if (statusChar === 'E') {
-      return `<span class="att-dot dot-e"></span><span>${isEn ? 'Excused (-0.5pt, 0.5x)' : 'Có phép (-0.5đ, 0.5x)'}</span>`;
+      return `<span class="att-dot dot-e"></span><span>${isEn ? `Excused (-${rl.deductE}pt, ${rl.eToAbsence}x)` : `Có phép (-${rl.deductE}đ, ${rl.eToAbsence}x)`}</span>`;
     }
-    return `<span class="att-dot dot-a"></span><span>${isEn ? 'Absent (-1.0pt, 1x)' : 'Vắng (-1.0đ, 1x)'}</span>`;
+    return `<span class="att-dot dot-a"></span><span>${isEn ? `Absent (-${rl.deductA}pt, 1x)` : `Vắng (-${rl.deductA}đ, 1x)`}</span>`;
   }
 
   const scoreMetaRowHtml = `
     <div class="att-history-row" style="font-weight:700;">
       <span class="att-history-time">${isEn ? 'Attendance Score' : 'Điểm chuyên cần'}: ${scoreVal} / 10</span>
-      <span class="att-history-status">${isEn ? 'Equiv. Absences' : 'Vắng quy đổi'}: ${equivVal} / 6.0</span>
+      <span class="att-history-status">${isEn ? 'Equiv. Absences' : 'Vắng quy đổi'}: ${equivVal}${showAbsLimit ? ' / ' + banAbsVal : ''}</span>
     </div>
   `;
 
@@ -836,17 +763,6 @@ function renderStudentAttendanceSummary(instId, classId) {
     </div>
   `;
   bar.classList.remove('hidden');
-}
-
-function toggleAddCourseBox() {
-  const profiles = getStudentProfiles();
-  if (Object.keys(profiles).length > 0) {
-    // Once MSSV is bound, do not allow opening the MSSV input box again
-    document.getElementById('box-add-course').classList.add('hidden');
-    return;
-  }
-  document.getElementById('box-add-course').classList.toggle('hidden');
-  syncStudentViewportScrollLock();
 }
 
 /**
@@ -901,8 +817,6 @@ async function handleStudentPreCheckGps() {
   try {
     const pos = await getAccuratePosition();
     const spoofCheck = inspectGpsForSpoofing(pos);
-    // Explicitly clear any cached coordinate so check-in always fetches fresh live GPS
-    window.cachedGPS = null;
 
     if (spoofCheck.hardBlock) {
       if (dot) dot.className = 'status-dot dot-err';
@@ -955,7 +869,6 @@ async function handleStudentPreCheckGps() {
       }
     }
   } catch (err) {
-    window.cachedGPS = null;
     if (dot) dot.className = 'status-dot dot-err';
     if (err && err.code === 1) {
       if (readout) {
@@ -1051,14 +964,6 @@ async function submitStudentOnboarding() {
   }
 
   const apiUrl = normalizeApiUrl(window.customOnboardApiUrl || DEFAULT_LECTURER_API);
-  if (!apiUrl) {
-    showStatus(
-      I18N[currentLang].stu_need_qr_desc,
-      'err',
-      'onboard-inline-status'
-    );
-    return false;
-  }
   const studentId = document.getElementById('inp-student-id').value.trim().toUpperCase();
 
   if (!studentId) {
@@ -1128,18 +1033,14 @@ async function submitStudentOnboarding() {
     return false;
   }
 
-  const resolvedInstId = pingRes.installationId || window.customOnboardInstId || DEFAULT_INST_ID || ('INST_' + apiUrl.slice(-15, -5));
-  const resolvedLecturerName = pingRes.lecturerName || window.customOnboardLecturerName || DEFAULT_LECTURER_NAME || 'Giảng viên';
-
-  saveStudentProfile(resolvedInstId, {
-    installationId: resolvedInstId,
-    lecturerName: resolvedLecturerName,
+  saveStudentProfile(pingRes.installationId || DEFAULT_INST_ID, {
+    installationId: pingRes.installationId || DEFAULT_INST_ID,
+    lecturerName: pingRes.lecturerName || DEFAULT_LECTURER_NAME,
     apiUrl: apiUrl,
     studentId: res.studentId,
     fullName: res.fullName,
     enrolledClasses: res.enrolledClasses
   });
-  safeSetLocal('cc_active_inst', resolvedInstId);
 
   hideStatus('onboard-inline-status');
   if (typeof pulseButtonConfirm === 'function') {
@@ -1158,82 +1059,6 @@ async function submitStudentOnboarding() {
     id: res.studentId,
     count: (res.enrolledClasses || []).length
   }), 'success', 'checkin-inline-status');
-  return true;
-}
-
-async function autoLinkAdditionalLecturerProfile(rawApiUrl, hintInstId, hintLecturerName) {
-  const apiUrl = normalizeApiUrl(rawApiUrl);
-  if (!apiUrl) return false;
-  const check = evaluateStudentAntiCheat();
-  if (!check.browserOk) {
-    checkIosStandaloneNotice();
-    return false;
-  }
-  const existingProfiles = getStudentProfiles();
-  const existingKeys = Object.keys(existingProfiles);
-  if (existingKeys.length === 0) return false;
-  const primaryProfile = existingProfiles[existingKeys[0]];
-  const boundStudentId = String((primaryProfile && primaryProfile.studentId) || '').trim().toUpperCase();
-  if (!boundStudentId) return false;
-
-  showStatus(
-    currentLang === 'en'
-      ? 'Connecting to additional lecturer course server...'
-      : 'Đang liên kết thêm lớp học của giảng viên mới...',
-    'warn',
-    'checkin-inline-status'
-  );
-
-  if (typeof ensureDeviceVaultReady === 'function') {
-    await ensureDeviceVaultReady();
-  }
-
-  const pingRes = await callBackend(apiUrl, { action: 'PING', studentId: boundStudentId });
-  if (!pingRes || !pingRes.ok) {
-    showStatus(
-      currentLang === 'en' ? 'Cannot connect to lecturer server. Please check your network.' : 'Không kết nối được tới máy chủ của giảng viên mới. Vui lòng kiểm tra mạng.',
-      'err',
-      'checkin-inline-status'
-    );
-    return false;
-  }
-
-  const res = await callBackend(apiUrl, {
-    action: 'STUDENT_ONBOARD',
-    studentId: boundStudentId,
-    credential: getOrCreateDeviceCredential(),
-    deviceFp: getHardwareFingerprint(),
-    clientMeta: check
-  });
-
-  if (!res || !res.ok) {
-    showStatus(formatServerMessage(res ? res.code : 'ERR_NETWORK', res ? res.params : {}, res ? res.message : ''), 'err', 'checkin-inline-status');
-    return false;
-  }
-
-  const newInstId = pingRes.installationId || hintInstId || ('INST_' + apiUrl.slice(-15, -5));
-  const newLecturerName = pingRes.lecturerName || hintLecturerName || 'Giảng viên';
-
-  saveStudentProfile(newInstId, {
-    installationId: newInstId,
-    lecturerName: newLecturerName,
-    apiUrl: apiUrl,
-    studentId: res.studentId,
-    fullName: res.fullName || primaryProfile.fullName || boundStudentId,
-    enrolledClasses: res.enrolledClasses || []
-  });
-  safeSetLocal('cc_active_inst', newInstId);
-  ingestServerScheduleData(pingRes);
-  renderStudentCourseSelectors();
-  syncStudentViewportScrollLock();
-  showStatus(
-    currentLang === 'en'
-      ? `[LINKED] Added classes for Lecturer ${newLecturerName} (${(res.enrolledClasses || []).length} courses).`
-      : `[ĐÃ THÊM LỚP] Đã liên kết thêm lớp của Giảng viên ${newLecturerName} (${(res.enrolledClasses || []).length} lớp).`,
-    'success',
-    'checkin-inline-status'
-  );
-  syncStudentLiveScheduleFromServer();
   return true;
 }
 
@@ -1434,13 +1259,6 @@ async function executeStudentCheckIn(qrString, preLockedGpsPos = null, pinTiming
   const profile = profiles[instId];
 
   if (!profile) {
-    const hasOnboardApi = Boolean(normalizeApiUrl(window.customOnboardApiUrl || DEFAULT_LECTURER_API));
-    if (!hasOnboardApi) {
-      document.getElementById('box-add-course').classList.add('hidden');
-      syncStudentViewportScrollLock();
-      showStatus(I18N[currentLang].stu_need_qr_desc, 'err', 'checkin-inline-status');
-      return;
-    }
     document.getElementById('box-add-course').classList.remove('hidden');
     syncStudentViewportScrollLock();
     showStatus(
@@ -1538,8 +1356,7 @@ async function executeStudentCheckIn(qrString, preLockedGpsPos = null, pinTiming
 
   try {
     // Always acquire fresh live GPS on check-in (or use the just-locked Round 2 GPS fix during 10s PIN entry)
-    window.cachedGPS = null;
-    let pos = (preLockedGpsPos && isValidGpsPos(preLockedGpsPos)) ? preLockedGpsPos : null;
+    let pos =(preLockedGpsPos && isValidGpsPos(preLockedGpsPos) && (Date.now() - Number(preLockedGpsPos.timestamp)) <= 60000) ? preLockedGpsPos : null;
     try {
       if (!pos) {
         pos = await getAccuratePosition();
